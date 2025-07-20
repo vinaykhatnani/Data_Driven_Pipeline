@@ -1,0 +1,86 @@
+pipeline {
+  agent any
+
+  environment {
+    AWS_REGION        = 'ap-south-1'
+    TF_VAR_bucket_name = 'internal-task012-bellybrew-data-bucket'
+
+    AWS_ACCESS_KEY_ID     = credentials('access')
+    AWS_SECRET_ACCESS_KEY = credentials('secret')
+  }
+
+  stages {
+    stage('Checkout Code') {
+      steps {
+        git url: 'https://github.com/vinaykhatnani/Data-driven-pipeline.git', branch: 'main'
+      }
+    }
+
+    stage('Terraform Init') {
+      steps {
+        dir('terraform') {
+          withEnv([
+            "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
+            "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}",
+            "AWS_REGION=${env.AWS_REGION}",
+            "TF_VAR_bucket_name=${env.TF_VAR_bucket_name}"
+          ]) {
+            sh 'terraform init'
+          }
+        }
+      }
+    }
+
+    stage('Terraform Validate') {
+      steps {
+        dir('terraform') {
+          withEnv([
+            "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
+            "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}",
+            "AWS_REGION=${env.AWS_REGION}",
+            "TF_VAR_bucket_name=${env.TF_VAR_bucket_name}"
+          ]) {
+            sh 'terraform validate'
+          }
+        }
+      }
+    }
+
+    stage('Terraform Plan') {
+      steps {
+        dir('terraform') {
+          withEnv([
+            "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
+            "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}",
+            "AWS_REGION=${env.AWS_REGION}",
+            "TF_VAR_bucket_name=${env.TF_VAR_bucket_name}"
+          ]) {
+            sh 'terraform plan -out=tfplan'
+          }
+        }
+      }
+    }
+
+    stage('Terraform Apply') {
+      steps {
+        input message: 'Do you want to apply the Terraform changes?'
+        dir('terraform') {
+          withEnv([
+            "AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}",
+            "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}",
+            "AWS_REGION=${env.AWS_REGION}",
+            "TF_VAR_bucket_name=${env.TF_VAR_bucket_name}"
+          ]) {
+            sh 'terraform apply -auto-approve tfplan'
+          }
+        }
+      }
+    }
+
+    stage('Cleanup Plan File') {
+      steps {
+        dir('terraform') {
+          sh 'rm -f tfplan'
+        }
+      }
+    }
